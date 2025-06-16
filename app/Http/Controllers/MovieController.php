@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Movie;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class MovieController extends Controller
@@ -65,4 +66,56 @@ class MovieController extends Controller
 
         return redirect('/')->with('success', 'Movie created successfully!');
     }
+    public function destroy($id)
+{
+    if(Gate::allows('delete')){
+        $movie = Movie::findOrFail($id);
+        $movie->delete();
+
+         return redirect('/')->with('success', 'Movie berhasil dihapus!');
+    }else{
+        abort(403);
+    }
+}
+public function edit($id)
+{
+    $movie = Movie::findOrFail($id);
+    $categories = Category::all();
+    return view('edit-movie', compact('movie', 'categories'));
+}
+
+public function update(Request $request, $id)
+{
+    $movie = Movie::findOrFail($id);
+
+
+    $request->validate([
+        'title' => 'required|max:255',
+        'synopsis' => 'nullable',
+        'category_id' => 'required|exists:categories,id',
+        'year' => 'required|digits:4|integer',
+        'actors' => 'nullable',
+        'cover' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+    ]);
+
+    // update cover
+    if ($request->hasFile('cover')) {
+        $coverName = time() . '.' . $request->cover->extension();
+        $request->cover->move(public_path('covers'), $coverName);
+        $movie->cover_image = $coverName;
+    }
+
+    $movie->update([
+        'title' => $request->title,
+        'slug' => Str::slug($request->title),
+        'synopsis' => $request->synopsis,
+        'category_id' => $request->category_id,
+        'year' => $request->year,
+        'actors' => $request->actors,
+        'cover_image' => $movie->cover_image, // jika tetap pake cover lama
+    ]);
+
+    return redirect('/')->with('success', 'Movie berhasil diperbarui!');
+}
+    
 }
